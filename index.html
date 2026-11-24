@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#e2eeee">
+<title>fortune — TikTok Downloader</title>
+<style>
+:root{
+  --bg:#e2eeee; --surface:#e2eeee; --ink:#344747; --muted:#829595;
+  --light:#ffffff; --shade:#bdcccc; --accent:#527f7c;
+  --shadow:9px 9px 18px #c0cece,-9px -9px 18px #ffffff;
+  --inset:inset 5px 5px 10px #c0cece,inset -5px -5px 10px #ffffff;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);
+ font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+ display:flex;justify-content:center;padding:38px 16px 50px}
+main{width:min(100%,520px)}
+.brand{text-align:center;margin:15px 0 34px}
+.brand-mark{width:58px;height:58px;margin:0 auto 18px;border-radius:19px;
+ display:grid;place-items:center;box-shadow:var(--shadow);font-size:25px;color:var(--accent)}
+.brand h1{font-family:Georgia,serif;font-style:italic;font-weight:600;
+ letter-spacing:-1.5px;font-size:38px;margin:0}
+.brand p{margin:9px 0 0;color:var(--muted);font-size:13px;letter-spacing:1.5px;text-transform:uppercase}
+.panel{padding:25px;border-radius:27px;box-shadow:var(--shadow)}
+.section-title{font-size:14px;font-weight:700;margin:0 0 17px;letter-spacing:.2px}
+.field-label{display:block;font-size:12px;color:var(--muted);margin:0 0 9px 3px}
+.input-wrap{border-radius:15px;box-shadow:var(--inset);padding:4px}
+input{width:100%;border:0;outline:0;background:transparent;color:var(--ink);
+ padding:15px 13px;font:inherit;font-size:14px}
+input::placeholder{color:#9aabab}
+button,.download-link{border:0;text-decoration:none;color:var(--ink);font:inherit;
+ font-weight:650;cursor:pointer;border-radius:15px;box-shadow:var(--shadow);
+ background:var(--surface);transition:box-shadow .2s,transform .2s,color .2s}
+button:hover,.download-link:hover{transform:translateY(-2px)}
+button:active,.download-link:active{box-shadow:var(--inset);transform:scale(.985)}
+.primary{width:100%;margin-top:17px;padding:15px;background:#dce9e8;color:#416d69}
+.primary:disabled{opacity:.55;cursor:wait;transform:none}
+.hint{font-size:11px;color:var(--muted);line-height:1.6;margin:13px 2px 0}
+.status{display:none;margin-top:17px;padding:13px 15px;border-radius:13px;
+ box-shadow:var(--inset);font-size:12px;color:var(--muted);line-height:1.5}
+.status.show{display:block}
+.result{display:none;margin-top:23px;padding:20px;border-radius:23px;box-shadow:var(--shadow)}
+.result.show{display:block}
+.preview{width:100%;max-height:360px;object-fit:cover;border-radius:15px;
+ background:#d4e1e1;box-shadow:var(--inset)}
+.video-placeholder{height:170px;display:grid;place-items:center;color:var(--muted);
+ border-radius:15px;box-shadow:var(--inset);font-size:13px}
+.creator{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}
+.creator strong{font-size:14px}.creator span{font-size:11px;color:var(--muted)}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px}
+.pill{font-size:11px;padding:8px 11px;border-radius:20px;box-shadow:var(--shadow);color:var(--muted)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.download-link{display:flex;justify-content:center;align-items:center;text-align:center;padding:13px 9px;font-size:12px}
+.download-link.primary-link{color:#416d69}
+.foot{text-align:center;color:var(--muted);font-size:11px;margin:23px 0 0;line-height:1.7}
+@media(max-width:420px){body{padding:20px 13px 35px}.panel{padding:19px}.brand{margin:12px 0 27px}.actions{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+  <header class="brand">
+    <div class="brand-mark">↧</div>
+    <h1>fortune</h1>
+    <p>tiktok video downloade by penyoy</p>
+  </header>
+
+  <section class="panel">
+    <h2 class="section-title">Download video</h2>
+    <label class="field-label" for="videoUrl">TikTok video URL</label>
+    <div class="input-wrap">
+      <input id="videoUrl" type="url" placeholder="https://www.tiktok.com/@user/video/..." autocomplete="url">
+    </div>
+    <button class="primary" id="fetchBtn">Get video <span aria-hidden="true">↗</span></button>
+    <p class="hint">Tempel tautan video TikTok yang ingin diproses</p>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="result" id="result">
+    <h2 class="section-title">Video found</h2>
+    <div id="previewArea"></div>
+    <div class="creator">
+      <div><strong id="author">TikTok creator</strong><br><span id="videoId"></span></div>
+      <span id="duration"></span>
+    </div>
+    <div class="meta" id="stats"></div>
+    <div class="actions" id="actions"></div>
+  </section>
+  <p class="foot">FORTUNE · SOFT UI<br>Gunakan hanya untuk konten yang tidak mengandung copyright</p>
+</main>
+<script>
+const API_ENDPOINT = "https://api.siputzx.my.id/api/d/tiktok/v2";
+
+const $ = (id) => document.getElementById(id);
+const statusBox = $("status");
+const resultBox = $("result");
+const fetchBtn = $("fetchBtn");
+
+function showStatus(message, isError=false) {
+  statusBox.textContent = message;
+  statusBox.style.color = isError ? "#a45f5f" : "";
+  statusBox.classList.add("show");
+}
+function validTikTokUrl(value) {
+  try {
+    const u = new URL(value);
+    return ["tiktok.com","www.tiktok.com","vm.tiktok.com","vt.tiktok.com","m.tiktok.com"].includes(u.hostname);
+  } catch { return false; }
+}
+function addPill(label, value) {
+  if (value === undefined || value === null || value === "") return;
+  const el = document.createElement("span");
+  el.className = "pill";
+  el.textContent = `${label} ${value}`;
+  $("stats").appendChild(el);
+}
+function addDownload(label, url, primary=false) {
+  if (!url) return;
+  const a = document.createElement("a");
+  a.className = "download-link" + (primary ? " primary-link" : "");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.textContent = label;
+  // Direct media URL is opened in a new tab; browser/server headers determine saving behavior.
+  $("actions").appendChild(a);
+}
+function render(data) {
+  const d = data.data || data;
+  if (!d || (!d.no_watermark_link && !d.no_watermark_link_hd && !d.music_link)) {
+    throw new Error("Respons API tidak berisi link media yang dapat digunakan.");
+  }
+  $("author").textContent = d.author_nickname || d.author_unique_id || "TikTok creator";
+  $("videoId").textContent = d.itemId ? `ID · ${d.itemId}` : "";
+  $("duration").textContent = d.duration ? `${(Number(d.duration)/1000).toFixed(1)} detik` : "";
+  $("stats").innerHTML = "";
+  addPill("♥", d.like_count);
+  addPill("▶", d.play_count);
+  addPill("↗", d.share_count);
+  $("actions").innerHTML = "";
+  addDownload("Download HD ↗", d.no_watermark_link_hd, true);
+  addDownload("No watermark ↗", d.no_watermark_link);
+  addDownload("Music ↗", d.music_link);
+  const area = $("previewArea");
+  area.innerHTML = "";
+  if (d.cover_link) {
+    const img = document.createElement("img");
+    img.className = "preview";
+    img.src = d.cover_link;
+    img.alt = "Video cover";
+    img.referrerPolicy = "no-referrer";
+    area.appendChild(img);
+  } else {
+    const placeholder = document.createElement("div");
+    placeholder.className = "video-placeholder";
+    placeholder.textContent = "Preview cover tidak tersedia";
+    area.appendChild(placeholder);
+  }
+  resultBox.classList.add("show");
+}
+async function getVideo() {
+  const url = $("videoUrl").value.trim();
+  resultBox.classList.remove("show");
+  if (!validTikTokUrl(url)) {
+    showStatus("Masukkan URL TikTok yang valid.", true);
+    return;
+  }
+  fetchBtn.disabled = true;
+  fetchBtn.textContent = "Processing…";
+  showStatus("Menghubungi API dan mengambil informasi video…");
+  try {
+    // Endpoint is called with the source URL as a query parameter.
+    const requestUrl = `${API_ENDPOINT}?url=${encodeURIComponent(url)}`;
+    const response = await fetch(requestUrl, { method: "GET" });
+    if (!response.ok) throw new Error(`API merespons HTTP ${response.status}.`);
+    const json = await response.json();
+    if (json.status === false) throw new Error(json.message || "API gagal memproses URL.");
+    render(json);
+    showStatus("Video berhasil ditemukan. Pilih salah satu tautan download.");
+  } catch (err) {
+    const msg = err instanceof TypeError
+      ? "Tidak dapat menghubungi API. Bisa jadi server sedang tidak aktif atau akses CORS dibatasi."
+      : err.message;
+    showStatus(msg, true);
+  } finally {
+    fetchBtn.disabled = false;
+    fetchBtn.innerHTML = 'Get video <span aria-hidden="true">↗</span>';
+  }
+}
+fetchBtn.addEventListener("click", getVideo);
+$("videoUrl").addEventListener("keydown", e => { if (e.key === "Enter") getVideo(); });
+</script>
+</body>
+</html>
